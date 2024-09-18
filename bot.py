@@ -2,7 +2,6 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
 import requests
-from telegram.ext import JobQueue
 from datetime import datetime
 import random
 import os  # Импортируем os для работы с переменными окружения
@@ -24,10 +23,6 @@ CURRENCY_PAIRS = [
     ('USD', 'TRY')
 ]
 
-# Переменная для отслеживания количества сигналов в день
-signals_sent_today = 0
-current_day = datetime.now().day
-
 # Функция для получения курса валют
 def get_currency_rate(base_currency, target_currency):
     try:
@@ -40,7 +35,7 @@ def get_currency_rate(base_currency, target_currency):
             return data['rates'][target_currency]
         else:
             return None
-    except requests.RequestException as e:
+    except requests.RequestException:
         return None
 
 # Функция для генерации LONG-сигнала
@@ -68,21 +63,10 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
     return signal
 
 # Асинхронная функция для отправки сигналов по валютным парам
-async def send_signals(context):
-    global signals_sent_today, current_day
+async def send_signals(update: Update, context):
+    chat_id = update.message.chat_id
 
-    # Проверка, нужно ли сбросить счетчик сигналов в начале нового дня
-    today = datetime.now().day
-    if today != current_day:
-        current_day = today
-        signals_sent_today = 0
-
-    # Если уже отправлено 3 сигнала за день, не отправляем больше
-    if signals_sent_today >= 3:
-        return
-
-    chat_id = context.job.chat_id
-    for base_currency, target_currency in CURRENCY_PAIRS:
+    for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
         current_price = get_currency_rate(base_currency, target_currency)
         if current_price:
             # Случайный выбор между LONG и SHORT
@@ -100,20 +84,15 @@ async def send_signals(context):
                 signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
             
             await context.bot.send_message(chat_id=chat_id, text=signal)
-            signals_sent_today += 1
-            if signals_sent_today >= 3:
-                return
         else:
             await context.bot.send_message(chat_id=chat_id, text=f"Не удалось получить данные для {base_currency}/{target_currency}")
 
 # Обработчик команды /start
 async def start(update: Update, context):
-    # Запуск задачи для генерации сигналов каждые 60 секунд без сообщения
-    context.job_queue.run_repeating(send_signals, interval=60, first=60, chat_id=update.message.chat_id)
+    await send_signals(update, context)
 
 # Обработчик команды /stop для остановки сигналов
 async def stop(update: Update, context):
-    context.job_queue.stop()
     await update.message.reply_text("Генерация сигналов остановлена.")
 
 # Основная функция
@@ -124,7 +103,7 @@ def main():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     
     # Создание приложения с поддержкой JobQueue
-    app = ApplicationBuilder().token(TOKEN).post_init(lambda app: app.job_queue.start()).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
     # Добавляем команды /start и /stop
     app.add_handler(CommandHandler("start", start))
