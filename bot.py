@@ -121,7 +121,7 @@ def main():
     print("Запуск бота")  # Отладочное сообщение
     
     # Получаем токен из переменной окружения
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    TOKEN = os.getenv("7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg")
     
     # Создание приложения с поддержкой JobQueue
     app = ApplicationBuilder().token(TOKEN).post_init(lambda app: app.job_queue.start()).build()
