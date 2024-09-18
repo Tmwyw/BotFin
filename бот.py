@@ -5,7 +5,7 @@ import requests
 from telegram.ext import JobQueue
 from datetime import datetime
 import random
-
+import os  # Импортируем os для работы с переменными окружения
 
 # Твой API ключ для обменных курсов
 API_KEY = "e9313eae0113f4c915d2946b3a633c1e"
@@ -119,8 +119,12 @@ async def stop(update: Update, context):
 # Основная функция
 def main():
     print("Запуск бота")  # Отладочное сообщение
+    
+    # Получаем токен из переменной окружения
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    
     # Создание приложения с поддержкой JobQueue
-    app = ApplicationBuilder().token("7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg").post_init(lambda app: app.job_queue.start()).build()
+    app = ApplicationBuilder().token(TOKEN).post_init(lambda app: app.job_queue.start()).build()
 
     # Добавляем команды /start и /stop
     app.add_handler(CommandHandler("start", start))
