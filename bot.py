@@ -8,7 +8,7 @@ import io
 from telegram import InputFile
 import numpy as np
 import time
-from iqoptionapi.stable_api import IQ_Option  # Импортируем IQ Option API
+from iqoptionapi.api import IQ_Option  # Импортируем IQ Option API
 
 # Авторизация в IQ Option
 def connect_iq_option():
