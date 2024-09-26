@@ -8,6 +8,7 @@ import os  # Импортируем os для работы с переменны
 import matplotlib.pyplot as plt
 import io
 from telegram import InputFile
+import numpy as np
 
 # Твой API ключ для обменных курсов
 API_KEY = "e9313eae0113f4c915d2946b3a633c1e"
@@ -67,7 +68,13 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
 
 # Функция для построения графика валютной пары с сигналами
 def plot_currency_chart(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type):
-    plt.figure(figsize=(10, 5))
+     # Применение стиля
+    plt.style.use('seaborn-darkgrid')
+
+    plt.figure(figsize=(10, 6))
+
+    # Построение линии цены
+    plt.plot(time_points, prices, label=f'{base_currency}/{target_currency}', color='blue', linewidth=2)
     
     # Примерные данные для графика движения цены
     prices = [current_price * (0.95 + 0.01 * i) for i in range(10)]
@@ -76,28 +83,32 @@ def plot_currency_chart(base_currency, target_currency, current_price, take_prof
     # Построение графика
     plt.plot(time_points, prices, label=f'{base_currency}/{target_currency}', color='blue')
 
-    # Добавляем линии для Take Profit и Stop Loss
-    plt.axhline(take_profit1, color='green', linestyle='--', label='Take Profit 1')
-    plt.axhline(take_profit2, color='green', linestyle='--', label='Take Profit 2')
-    plt.axhline(stop_loss, color='red', linestyle='--', label='Stop Loss')
+    # Линии Take Profit и Stop Loss
+    plt.axhline(take_profit1, color='green', linestyle='--', label='Take Profit 1', linewidth=1.5)
+    plt.axhline(take_profit2, color='green', linestyle='--', label='Take Profit 2', linewidth=1.5)
+    plt.axhline(stop_loss, color='red', linestyle='--', label='Stop Loss', linewidth=1.5)
 
-    # Добавляем аннотации для точки входа
-    if signal_type == 'LONG':
-        plt.annotate('Entry (LONG)', xy=(5, current_price), xytext=(6, current_price * 1.02),
-                     arrowprops=dict(facecolor='green', shrink=0.05))
-    else:
-        plt.annotate('Entry (SHORT)', xy=(5, current_price), xytext=(6, current_price * 0.98),
-                     arrowprops=dict(facecolor='red', shrink=0.05))
-        
+    # Добавляем аннотацию точки входа
+    entry_text = 'Entry (LONG)' if signal_type == 'LONG' else 'Entry (SHORT)'
+    plt.annotate(entry_text, xy=(5, current_price), xytext=(6, current_price * (1.02 if signal_type == 'LONG' else 0.98)),
+                 arrowprops=dict(facecolor='green' if signal_type == 'LONG' else 'red', shrink=0.05, width=2))
+    # Сетка
+    plt.grid(True)
+
          # Добавляем легенду и заголовок
     plt.legend()
     plt.title(f'График для {base_currency}/{target_currency}')
     plt.xlabel('Время')
     plt.ylabel('Цена')
 
-    # Сохраняем график в буфер
+    # Заголовок и подписи осей
+    plt.title(f'График валютной пары {base_currency}/{target_currency}', fontsize=14, fontweight='bold')
+    plt.xlabel('Время', fontsize=12)
+    plt.ylabel('Цена', fontsize=12)
+
+     # Сохранение графика в буфер
     buffer = io.BytesIO()
-    plt.savefig(buffer, format='png')
+    plt.savefig(buffer, format='png', bbox_inches='tight')
     buffer.seek(0)
     plt.close()
 
