@@ -2,21 +2,19 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
 import random
-import os
-import matplotlib.pyplot as plt
 import io
-from telegram import InputFile
 import numpy as np
-import time
+import os
 from iqoptionapi.stable_api import IQ_Option
+import time
 
-# Авторизация в IQ Option
+# Подключение к IQ Option
 def connect_iq_option():
-    email = os.getenv("nik.2ch@gmail.com")  # Используй переменные окружения для email
-    password = os.getenv("#U6dq$G!Ez65ad45F&gm")  # Используй переменные окружения для пароля
+    email = os.getenv("IQOPTION_nik.2ch@gmail.com")  # Используем переменные окружения
+    password = os.getenv("IQOPTION_#U6dq$G!Ez65ad45F&gm")
     iq = IQ_Option(email, password)
     iq.connect()
-    
+
     if iq.check_connect():
         print("Подключение к IQ Option успешно!")
         return iq
@@ -34,15 +32,6 @@ def get_currency_rate(base_currency, target_currency, iq):
     else:
         print(f"Не удалось получить данные для {asset}")
         return None
-
-# Список валютных пар для мониторинга
-CURRENCY_PAIRS = [
-    ('EUR', 'USD'),
-    ('GBP', 'USD'),
-    ('AUD', 'USD'),
-    ('USD', 'JPY'),
-    ('USD', 'TRY')
-]
 
 # Функция для генерации LONG-сигнала
 def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
@@ -68,64 +57,19 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
     )
     return signal
 
-# Функция для построения графика валютной пары с сигналами
-def plot_currency_chart(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type):
-    # Применение стиля
-    plt.style.use('ggplot')
-
-    # Примерные данные для графика движения цены
-    prices = [current_price * (0.95 + 0.01 * i) for i in range(10)]  # Генерация данных для цен
-    time_points = range(len(prices))  # Генерация временных точек
-
-    plt.figure(figsize=(10, 6))  # Настраиваем размер графика
-
-    # Построение линии цены
-    plt.plot(time_points, prices, label=f'{base_currency}/{target_currency}', color='blue', linewidth=2)
-
-    # Линии Take Profit и Stop Loss
-    plt.axhline(take_profit1, color='green', linestyle='--', label='Take Profit 1', linewidth=1.5)
-    plt.axhline(take_profit2, color='green', linestyle='--', label='Take Profit 2', linewidth=1.5)
-    plt.axhline(stop_loss, color='red', linestyle='--', label='Stop Loss', linewidth=1.5)
-
-    # Добавляем аннотацию точки входа
-    entry_text = 'Entry (LONG)' if signal_type == 'LONG' else 'Entry (SHORT)'
-    plt.annotate(entry_text, xy=(5, current_price), xytext=(6, current_price * (1.02 if signal_type == 'LONG' else 0.98)),
-                 arrowprops=dict(facecolor='green' if signal_type == 'LONG' else 'red', shrink=0.05, width=2))
-
-    # Сетка
-    plt.grid(True)
-
-    # Добавляем легенду и заголовок
-    plt.legend()
-    plt.title(f'График для {base_currency}/{target_currency}')
-    plt.xlabel('Время')
-    plt.ylabel('Цена')
-
-    # Сохранение графика в буфер
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format='png', bbox_inches='tight')
-    buffer.seek(0)
-    plt.close()
-
-    return buffer
-
-# Функция для отправки графика через Telegram
-async def send_chart(update, context, base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type):
-    chat_id = update.message.chat_id
-    buffer = plot_currency_chart(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type)
-    
-    # Отправляем график в чат
-    await context.bot.send_photo(chat_id=chat_id, photo=InputFile(buffer, filename='chart.png'))
-
 # Асинхронная функция для отправки сигналов по валютным парам
 async def send_signals(update: Update, context):
+    iq = connect_iq_option()  # Подключаемся к IQ Option
     chat_id = update.message.chat_id
     
-    iq = connect_iq_option()  # Подключаемся к IQ Option
-    if iq is None:
-        await context.bot.send_message(chat_id=chat_id, text="Ошибка подключения к IQ Option.")
-        return
-    
+    CURRENCY_PAIRS = [
+        ('EUR', 'USD'),
+        ('GBP', 'USD'),
+        ('AUD', 'USD'),
+        ('USD', 'JPY'),
+        ('USD', 'TRY')
+    ]
+
     for base_currency, target_currency in CURRENCY_PAIRS:  # Проходим по валютным парам
         current_price = get_currency_rate(base_currency, target_currency, iq)
         if current_price:
@@ -136,19 +80,14 @@ async def send_signals(update: Update, context):
                 take_profit2 = current_price * 1.1   # Например, 10% выше текущей цены
                 stop_loss = current_price * 0.95    # Например, 5% ниже текущей цены
                 signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-                signal_type = 'LONG'
             else:
                 # SHORT: Take Profit ниже цены, Stop Loss выше
                 take_profit1 = current_price * 0.95  # Например, 5% ниже текущей цены
                 take_profit2 = current_price * 0.9   # Например, 10% ниже текущей цены
                 stop_loss = current_price * 1.05    # Например, 5% выше текущей цены
                 signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-                signal_type = 'SHORT'
             
             await context.bot.send_message(chat_id=chat_id, text=signal)
-
-            # Вызов функции отправки графика
-            await send_chart(update, context, base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type)
         else:
             await context.bot.send_message(chat_id=chat_id, text=f"Не удалось получить данные для {base_currency}/{target_currency}")
 
