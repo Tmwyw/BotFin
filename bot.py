@@ -9,7 +9,6 @@ import io
 from telegram import InputFile
 import numpy as np
 
-import requests
 
 # Функция для получения рыночных данных с IQ Option (пример)
 def get_market_data(asset, timeframe):
@@ -17,6 +16,18 @@ def get_market_data(asset, timeframe):
     response = requests.get(url)
     if response.status_code == 200:
         return response.json()
+    return None
+
+
+# Функция для получения курса валют с использованием IQ Option
+def get_currency_rate(base_currency, target_currency):
+    asset = f"{base_currency}{target_currency}"  # Пример: USD/RUB
+    market_data = get_market_data(asset, "1m")  # Используем 1 минутный интервал
+    if market_data:
+        # Здесь надо подстроиться под структуру данных от API
+        # Допустим, что нужная цена находится в поле "price"
+        current_price = market_data.get('price')
+        return current_price
     return None
 
 
@@ -112,7 +123,7 @@ async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
     
     for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
-        current_price = get_currency_rate(base_currency, target_currency)
+        current_price = get_currency_rate(base_currency, target_currency)  # Получаем курс валют
         if current_price:
             # Случайный выбор между LONG и SHORT
             if random.choice([True, False]):
