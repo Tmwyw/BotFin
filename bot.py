@@ -9,23 +9,16 @@ import io
 from telegram import InputFile
 import numpy as np
 
-# Твой API ключ для обменных курсов
-def get_currency_rate(base_currency, target_currency):
-    API_KEY = "0a8b45f15e07db07cb198d6e"  # Замени на свой API-ключ
-    try:
-        url = f'https://v6.exchangerate-api.com/v6/{API_KEY}/latest/{base_currency}'
-        response = requests.get(url)
-        response.raise_for_status()  # Проверка на ошибки
-        data = response.json()
-        
-        # Проверяем, есть ли нужный курс в ответе
-        if 'conversion_rates' in data and target_currency in data['conversion_rates']:
-            return data['conversion_rates'][target_currency]
-        else:
-            return None
-    except requests.RequestException as e:
-        print(f"Error: {e}")
-        return None
+import requests
+
+# Функция для получения рыночных данных с IQ Option (пример)
+def get_market_data(asset, timeframe):
+    url = f"https://iqoption.com/api/marketdata/{asset}/{timeframe}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    return None
+
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
