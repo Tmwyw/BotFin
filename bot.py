@@ -2,16 +2,15 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
 import requests
-from datetime import datetime
 import random
-import os  # Импортируем os для работы с переменными окружения
+import os
 import matplotlib.pyplot as plt
 import io
 from telegram import InputFile
 import numpy as np
 
 # Твой API ключ для обменных курсов
-API_KEY = "e9313eae0113f4c915d2946b3a633c1e"
+API_KEY = os.getenv("EXCHANGE_API_KEY")  # Лучше хранить API ключ в переменной окружения
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
@@ -99,11 +98,6 @@ def plot_currency_chart(base_currency, target_currency, current_price, take_prof
     plt.xlabel('Время')
     plt.ylabel('Цена')
 
-      # Заголовок и подписи осей
-    plt.title(f'График валютной пары {base_currency}/{target_currency}', fontsize=14, fontweight='bold')
-    plt.xlabel('Время', fontsize=12)
-    plt.ylabel('Цена', fontsize=12)
-
     # Сохранение графика в буфер
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', bbox_inches='tight')
@@ -124,7 +118,6 @@ async def send_chart(update, context, base_currency, target_currency, current_pr
 async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
     
-
     for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
         current_price = get_currency_rate(base_currency, target_currency)
         if current_price:
@@ -146,13 +139,10 @@ async def send_signals(update: Update, context):
             
             await context.bot.send_message(chat_id=chat_id, text=signal)
 
-
             # Вызов функции отправки графика
             await send_chart(update, context, base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type)
         else:
             await context.bot.send_message(chat_id=chat_id, text=f"Не удалось получить данные для {base_currency}/{target_currency}")
-
-            
 
 # Обработчик команды /start
 async def start(update: Update, context):
