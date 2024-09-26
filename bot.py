@@ -1,43 +1,46 @@
 import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
-import requests
 import random
 import os
 import matplotlib.pyplot as plt
 import io
 from telegram import InputFile
 import numpy as np
+import time
+from iqoptionapi.stable_api import IQ_Option  # Импортируем IQ Option API
 
-# Твой API ключ для обменных курсов
-def get_currency_rate(base_currency, target_currency):
-    API_KEY = "0a8b45f15e07db07cb198d6e"  # Замени на свой API-ключ
-    try:
-        url = f'https://v6.exchangerate-api.com/v6/{API_KEY}/latest/{base_currency}'
-        response = requests.get(url)
-        response.raise_for_status()  # Проверка на ошибки
-        data = response.json()
-        
-        # Проверяем, есть ли нужный курс в ответе
-        if 'conversion_rates' in data and target_currency in data['conversion_rates']:
-            return data['conversion_rates'][target_currency]
-        else:
-            return None
-    except requests.RequestException as e:
-        print(f"Error: {e}")
+# Авторизация в IQ Option
+def connect_iq_option():
+    email = "nik.2ch@gmail.com"  # Вставь свой email от IQ Option
+    password = "#U6dq$G!Ez65ad45F&gm"  # Вставь свой пароль
+    iq = IQ_Option(email, password)
+    iq.connect()
+    
+    if iq.check_connect():
+        print("Подключение к IQ Option успешно!")
+        return iq
+    else:
+        print("Ошибка подключения к IQ Option.")
+        return None
+
+# Функция для получения курса валют с использованием IQ Option API
+def get_currency_rate(base_currency, target_currency, iq):
+    asset = f"{base_currency}{target_currency}"  # Пример: EURUSD
+    check, candles = iq.get_candles(asset, 60, 1, time.time())  # Получаем последние 60 секунд свечи
+    if check:
+        current_price = candles[0]['close']  # Цена закрытия последней свечи
+        return current_price
+    else:
+        print(f"Не удалось получить данные для {asset}")
         return None
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
-    ('USD', 'RUB'),
     ('EUR', 'USD'),
     ('GBP', 'USD'),
     ('AUD', 'USD'),
-    ('CAD', 'USD'),
-    ('NZD', 'USD'),
-    ('CHF', 'USD'),
-    ('JPY', 'USD'),
-    ('USD', 'CNY'),
+    ('USD', 'JPY'),
     ('USD', 'TRY')
 ]
 
@@ -118,8 +121,13 @@ async def send_chart(update, context, base_currency, target_currency, current_pr
 async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
     
-    for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
-        current_price = get_currency_rate(base_currency, target_currency)
+    iq = connect_iq_option()  # Подключаемся к IQ Option
+    if iq is None:
+        await context.bot.send_message(chat_id=chat_id, text="Ошибка подключения к IQ Option.")
+        return
+    
+    for base_currency, target_currency in CURRENCY_PAIRS:  # Проходим по валютным парам
+        current_price = get_currency_rate(base_currency, target_currency, iq)
         if current_price:
             # Случайный выбор между LONG и SHORT
             if random.choice([True, False]):
