@@ -41,21 +41,6 @@ CURRENCY_PAIRS = [
     ('USD', 'TRY')
 ]
 
-# Функция для получения курса валют
-def get_currency_rate(base_currency, target_currency):
-    try:
-        url = f'https://api.exchangeratesapi.io/v1/latest?access_key={API_KEY}&symbols={target_currency}'
-        response = requests.get(url)
-        response.raise_for_status()  # Проверка на ошибки
-        data = response.json()
-        
-        if 'rates' in data:
-            return data['rates'][target_currency]
-        else:
-            return None
-    except requests.RequestException:
-        return None
-
 # Функция для генерации LONG-сигнала
 def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
     signal = (
