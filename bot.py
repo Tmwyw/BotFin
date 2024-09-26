@@ -5,7 +5,7 @@ import random
 import io
 import numpy as np
 import os
-from iqoptionapi.stable_api import IQ_Option
+from iqoptionapi import IQ_Option
 import time
 
 # Подключение к IQ Option
