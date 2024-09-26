@@ -69,7 +69,7 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
 # Функция для построения графика валютной пары с сигналами
 def plot_currency_chart(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type):
      # Применение стиля
-    plt.style.use('seaborn-darkgrid')
+    plt.style.use('ggplot')
 
     plt.figure(figsize=(10, 6))
 
