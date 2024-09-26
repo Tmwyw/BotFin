@@ -12,8 +12,8 @@ from iqoptionapi.stable_api import IQ_Option  # Импортируем IQ Option
 
 # Авторизация в IQ Option
 def connect_iq_option():
-    email = "nik.2ch@gmail.com"  # Вставь свой email от IQ Option
-    password = "#U6dq$G!Ez65ad45F&gm"  # Вставь свой пароль
+    email = os.getenv("nik.2ch@gmail.com")  # Используй переменные окружения для email
+    password = os.getenv("#U6dq$G!Ez65ad45F&gm")  # Используй переменные окружения для пароля
     iq = IQ_Option(email, password)
     iq.connect()
     
