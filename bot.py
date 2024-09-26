@@ -9,27 +9,23 @@ import io
 from telegram import InputFile
 import numpy as np
 
-
-# Функция для получения рыночных данных с IQ Option (пример)
-def get_market_data(asset, timeframe):
-    url = f"https://iqoption.com/api/marketdata/{asset}/{timeframe}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    return None
-
-
-# Функция для получения курса валют с использованием IQ Option
+# Твой API ключ для обменных курсов
 def get_currency_rate(base_currency, target_currency):
-    asset = f"{base_currency}{target_currency}"  # Пример: USD/RUB
-    market_data = get_market_data(asset, "1m")  # Используем 1 минутный интервал
-    if market_data:
-        # Здесь надо подстроиться под структуру данных от API
-        # Допустим, что нужная цена находится в поле "price"
-        current_price = market_data.get('price')
-        return current_price
-    return None
-
+    API_KEY = "0a8b45f15e07db07cb198d6e"  # Замени на свой API-ключ
+    try:
+        url = f'https://v6.exchangerate-api.com/v6/{API_KEY}/latest/{base_currency}'
+        response = requests.get(url)
+        response.raise_for_status()  # Проверка на ошибки
+        data = response.json()
+        
+        # Проверяем, есть ли нужный курс в ответе
+        if 'conversion_rates' in data and target_currency in data['conversion_rates']:
+            return data['conversion_rates'][target_currency]
+        else:
+            return None
+    except requests.RequestException as e:
+        print(f"Error: {e}")
+        return None
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
@@ -123,7 +119,7 @@ async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
     
     for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
-        current_price = get_currency_rate(base_currency, target_currency)  # Получаем курс валют
+        current_price = get_currency_rate(base_currency, target_currency)
         if current_price:
             # Случайный выбор между LONG и SHORT
             if random.choice([True, False]):
