@@ -68,20 +68,17 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
 
 # Функция для построения графика валютной пары с сигналами
 def plot_currency_chart(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss, signal_type):
-     # Применение стиля
+    # Применение стиля
     plt.style.use('ggplot')
 
-    plt.figure(figsize=(10, 6))
+    # Примерные данные для графика движения цены
+    prices = [current_price * (0.95 + 0.01 * i) for i in range(10)]  # Генерация данных для цен
+    time_points = range(len(prices))  # Генерация временных точек
+
+    plt.figure(figsize=(10, 6))  # Настраиваем размер графика
 
     # Построение линии цены
     plt.plot(time_points, prices, label=f'{base_currency}/{target_currency}', color='blue', linewidth=2)
-    
-    # Примерные данные для графика движения цены
-    prices = [current_price * (0.95 + 0.01 * i) for i in range(10)]
-    time_points = range(len(prices))
-
-    # Построение графика
-    plt.plot(time_points, prices, label=f'{base_currency}/{target_currency}', color='blue')
 
     # Линии Take Profit и Stop Loss
     plt.axhline(take_profit1, color='green', linestyle='--', label='Take Profit 1', linewidth=1.5)
@@ -92,21 +89,22 @@ def plot_currency_chart(base_currency, target_currency, current_price, take_prof
     entry_text = 'Entry (LONG)' if signal_type == 'LONG' else 'Entry (SHORT)'
     plt.annotate(entry_text, xy=(5, current_price), xytext=(6, current_price * (1.02 if signal_type == 'LONG' else 0.98)),
                  arrowprops=dict(facecolor='green' if signal_type == 'LONG' else 'red', shrink=0.05, width=2))
+
     # Сетка
     plt.grid(True)
 
-         # Добавляем легенду и заголовок
+    # Добавляем легенду и заголовок
     plt.legend()
     plt.title(f'График для {base_currency}/{target_currency}')
     plt.xlabel('Время')
     plt.ylabel('Цена')
 
-    # Заголовок и подписи осей
+      # Заголовок и подписи осей
     plt.title(f'График валютной пары {base_currency}/{target_currency}', fontsize=14, fontweight='bold')
     plt.xlabel('Время', fontsize=12)
     plt.ylabel('Цена', fontsize=12)
 
-     # Сохранение графика в буфер
+    # Сохранение графика в буфер
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', bbox_inches='tight')
     buffer.seek(0)
