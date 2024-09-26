@@ -3,4 +3,5 @@ requests
 matplotlib
 seaborn
 iqoptionapi
+websocket-client
 
