@@ -29,9 +29,9 @@ def get_currency_rate(base_currency, target_currency):
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
-    ('USD', 'RUB'),
-    ('EUR', 'USD'),
-    ('GBP', 'USD'),
+    ('AUD', 'GBP'),
+    ('AED', 'CNY'),
+    ('CHF', 'NOK'),
     ('AUD', 'USD'),
     ('CAD', 'USD'),
     ('NZD', 'USD'),
