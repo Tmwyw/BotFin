@@ -10,29 +10,33 @@ from telegram import InputFile
 import os
 import requests
 import numpy as np
-from iqoptionapi import IQ_Option
 
-# Подключение к IQ Option
-async def connect_to_iq_option():
-    iq = IQ_Option("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
-    iq.connect()
-    
-    if iq.check_connect() == False:
+from iqoptionapi.stable_api import IQ_Option
+import json, logging, time
+from datetime import datetime
+logging.disable(level=(logging.DEBUG))
+
+# Подключение к IQ Option API
+def connect_iq_option():
+    API = IQ_Option("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
+    API.connect()
+    API.change_balance("PRACTICE")  # или REAL
+
+    if API.check_connect():
+        print("Успешное подключение к IQ Option")
+        return API
+    else:
         print("Ошибка подключения")
         return None
-    else:
-        print("Подключено")
-    
-    return iq
 
-# Получение текущей цены на IQ Option
-async def get_current_price():
-    iq = await connect_to_iq_option()
-    if iq:
-        goal = "EURUSD"
-        current_price = iq.get_candles(goal, 60, 1, time.time())[-1]['close']
-        return current_price
-    return None
+# Получение текущей цены валютной пары
+def get_current_price(api, paridade="EURUSD", timeframe=1):
+    status, candles = api.get_candles(paridade, 60, 1, time.time())
+    if status:
+        return candles[0]['close']
+    else:
+        print(f"Ошибка получения данных для {paridade}")
+        return None
 
 # Генерация сигнала LONG
 def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
@@ -61,28 +65,33 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
 # Отправка сигналов по валютным парам
 async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
+
+    # Подключение к IQ Option
+    api = connect_iq_option()
+    if not api:
+        await context.bot.send_message(chat_id=chat_id, text="Ошибка подключения к IQ Option")
+        return
     
     base_currency, target_currency = "EUR", "USD"
-    current_price = await get_current_price()
+    current_price = get_current_price(api, f"{base_currency}{target_currency}")
 
-    if current_price is None:
-        await context.bot.send_message(chat_id=chat_id, text="Ошибка подключения к IQ Option.")
-        return
-
-    if random.choice([True, False]):
-        # LONG
-        take_profit1 = current_price * 1.05
-        take_profit2 = current_price * 1.1
-        stop_loss = current_price * 0.95
-        signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+    if current_price:
+        if random.choice([True, False]):
+            # LONG
+            take_profit1 = current_price * 1.05
+            take_profit2 = current_price * 1.1
+            stop_loss = current_price * 0.95
+            signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+        else:
+            # SHORT
+            take_profit1 = current_price * 0.95
+            take_profit2 = current_price * 0.9
+            stop_loss = current_price * 1.05
+            signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+        
+        await context.bot.send_message(chat_id=chat_id, text=signal)
     else:
-        # SHORT
-        take_profit1 = current_price * 0.95
-        take_profit2 = current_price * 0.9
-        stop_loss = current_price * 1.05
-        signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-
-    await context.bot.send_message(chat_id=chat_id, text=signal)
+        await context.bot.send_message(chat_id=chat_id, text="Не удалось получить данные для валютной пары.")
 
 # Обработчик команды /start
 async def start(update: Update, context):
