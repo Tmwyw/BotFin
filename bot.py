@@ -10,9 +10,7 @@ from telegram import InputFile
 import os
 import requests
 import numpy as np
-
-from iqoptionapi.stable_api import IQ_Option
-import json, logging, time
+from iqoptionapi import IQ_Option
 from datetime import datetime
 logging.disable(level=(logging.DEBUG))
 
