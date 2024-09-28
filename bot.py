@@ -8,7 +8,7 @@ from pocketoptionapi.stable_api import PocketOption  # Убедись, что у
 
 # Подключение к Pocket Option API
 def connect_pocket_option():
-    ssid = os.getenv("42["auth",{"session":"ugceh9llu62egeenpnhalb629n","isDemo":1,"uid":85002634,"platform":2}]")  # Используй правильный SSID сессии для авторизации
+    ssid = os.getenv('42["auth", {"session":"ugceh9llu62egeenpnhalb629n", "isDemo":1, "uid":85002634, "platform":2}]') # Используй правильный SSID сессии для авторизации
     api = PocketOption(ssid)
     check_connect, message = api.connect()
 
