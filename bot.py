@@ -5,13 +5,13 @@ import random
 import io
 import numpy as np
 import os
-from iqoptionapi import IQ_Option
+from iqoptionapi.stable_api import IQ_Option  # Убедись, что путь импорта верен
 import time
 
-# Подключение к IQ Option
+# Подключение к IQ Option API
 def connect_iq_option():
-    email = os.getenv("IQOPTION_nik.2ch@gmail.com")  # Используем переменные окружения
-    password = os.getenv("IQOPTION_#U6dq$G!Ez65ad45F&gm")
+    email = "nik.2ch@gmail.com"  # Используй строковые значения или переменные окружения
+    password = "#U6dq$G!Ez65ad45F&gm"
     iq = IQ_Option(email, password)
     iq.connect()
 
@@ -60,6 +60,10 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
 # Асинхронная функция для отправки сигналов по валютным парам
 async def send_signals(update: Update, context):
     iq = connect_iq_option()  # Подключаемся к IQ Option
+    if iq is None:
+        await context.bot.send_message(chat_id=update.message.chat_id, text="Ошибка подключения к IQ Option.")
+        return
+
     chat_id = update.message.chat_id
     
     CURRENCY_PAIRS = [
