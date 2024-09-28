@@ -3,5 +3,5 @@ requests
 matplotlib
 seaborn
 requests
-websocket
+websockets==13.1
 
