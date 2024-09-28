@@ -10,24 +10,29 @@ from telegram import InputFile
 import os
 import requests
 import numpy as np
+from iqoptionapi.stable_api import IQ_Option
 
-# Подключение к Pocket Option WebSocket
-async def connect_to_pocket_option():
-    uri = "wss://demo-api.pocketoption.com/socket.io/?EIO=4&transport=websocket"
-    async with websockets.connect(uri) as websocket:
-        auth_message = json.dumps({
-            "action": "auth",
-            "data": {
-                "session": "your_session_token"  # Здесь подставь токен сессии
-            }
-        })
-        await websocket.send(auth_message)
+# Подключение к IQ Option
+async def connect_to_iq_option():
+    iq = IQ_Option("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
+    iq.connect()
+    
+    if iq.check_connect() == False:
+        print("Ошибка подключения")
+        return None
+    else:
+        print("Подключено")
+    
+    return iq
 
-        while True:
-            response = await websocket.recv()
-            data = json.loads(response)
-            if "price" in data:
-                return data["price"]  # Вернем текущую цену
+# Получение текущей цены на IQ Option
+async def get_current_price():
+    iq = await connect_to_iq_option()
+    if iq:
+        goal = "EURUSD"
+        current_price = iq.get_candles(goal, 60, 1, time.time())[-1]['close']
+        return current_price
+    return None
 
 # Генерация сигнала LONG
 def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
@@ -58,7 +63,11 @@ async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
     
     base_currency, target_currency = "EUR", "USD"
-    current_price = await connect_to_pocket_option()
+    current_price = await get_current_price()
+
+    if current_price is None:
+        await context.bot.send_message(chat_id=chat_id, text="Ошибка подключения к IQ Option.")
+        return
 
     if random.choice([True, False]):
         # LONG
