@@ -7,6 +7,9 @@ import random
 import matplotlib.pyplot as plt
 import io
 from telegram import InputFile
+import os
+import requests
+import numpy as np
 
 # Подключение к Pocket Option WebSocket
 async def connect_to_pocket_option():
