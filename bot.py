@@ -2,32 +2,30 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
 import random
-import io
-import numpy as np
 import os
-from iqoptionapi.stable_api import IQ_Option  # Убедись, что путь импорта верен
 import time
+from pocketoptionapi.stable_api import PocketOption  # Убедись, что у тебя есть такая библиотека
 
-# Подключение к IQ Option API
-def connect_iq_option():
-    email = "nik.2ch@gmail.com"  # Используй строковые значения или переменные окружения
-    password = "#U6dq$G!Ez65ad45F&gm"
-    iq = IQ_Option(email, password)
-    iq.connect()
+# Подключение к Pocket Option API
+def connect_pocket_option():
+    ssid = os.getenv("42["auth",{"session":"ugceh9llu62egeenpnhalb629n","isDemo":1,"uid":85002634,"platform":2}]")  # Используй правильный SSID сессии для авторизации
+    api = PocketOption(ssid)
+    check_connect, message = api.connect()
 
-    if iq.check_connect():
-        print("Подключение к IQ Option успешно!")
-        return iq
+    if check_connect:
+        print("Подключение к Pocket Option успешно!")
+        return api
     else:
-        print("Ошибка подключения к IQ Option.")
+        print(f"Ошибка подключения к Pocket Option: {message}")
         return None
 
-# Функция для получения курса валют с использованием IQ Option API
-def get_currency_rate(base_currency, target_currency, iq):
-    asset = f"{base_currency}{target_currency}"  # Пример: EURUSD
-    check, candles = iq.get_candles(asset, 60, 1, time.time())  # Получаем последние 60 секунд свечи
-    if check:
-        current_price = candles[0]['close']  # Цена закрытия последней свечи
+# Функция для получения курса валют с использованием Pocket Option API
+def get_currency_rate(base_currency, target_currency, api):
+    asset = f"{base_currency}_{target_currency}"  # Пример: EUR_USD
+    candles = api.get_candles(asset, 60)  # Получаем последние 60 секунд свечи
+
+    if candles:
+        current_price = candles[-1]['close']  # Цена закрытия последней свечи
         return current_price
     else:
         print(f"Не удалось получить данные для {asset}")
@@ -59,9 +57,9 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
 
 # Асинхронная функция для отправки сигналов по валютным парам
 async def send_signals(update: Update, context):
-    iq = connect_iq_option()  # Подключаемся к IQ Option
-    if iq is None:
-        await context.bot.send_message(chat_id=update.message.chat_id, text="Ошибка подключения к IQ Option.")
+    api = connect_pocket_option()  # Подключаемся к Pocket Option
+    if api is None:
+        await context.bot.send_message(chat_id=update.message.chat_id, text="Ошибка подключения к Pocket Option.")
         return
 
     chat_id = update.message.chat_id
@@ -75,7 +73,7 @@ async def send_signals(update: Update, context):
     ]
 
     for base_currency, target_currency in CURRENCY_PAIRS:  # Проходим по валютным парам
-        current_price = get_currency_rate(base_currency, target_currency, iq)
+        current_price = get_currency_rate(base_currency, target_currency, api)
         if current_price:
             # Случайный выбор между LONG и SHORT
             if random.choice([True, False]):
