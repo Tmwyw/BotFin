@@ -1,69 +1,45 @@
+import websockets
 import asyncio
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler
-import random
+import requests
 import os
-import time
-from pocketoptionapi.stable_api import PocketOption  # Убедись, что у тебя есть такая библиотека
 
-# Подключение к Pocket Option API
-def connect_pocket_option():
-    ssid = os.getenv('42["auth", {"session":"ugceh9llu62egeenpnhalb629n", "isDemo":1, "uid":85002634, "platform":2}]') # Используй правильный SSID сессии для авторизации
-    api = PocketOption(ssid)
-    check_connect, message = api.connect()
+# Функция для подключения к WebSocket Pocket Option
+async def connect_to_pocket_option():
+    uri = "wss://api.pocketoption.com/socket"  # Убедись в правильности URL
+    async with websockets.connect(uri) as websocket:
+        # Используем SSID для авторизации через WebSocket
+        auth_data = '{"action": "auth", "session":"ugceh9llu62egeenpnhalb629n", "isDemo":1, "uid":85002634, "platform":2}'
+        await websocket.send(auth_data)  # Отправляем данные для авторизации
+        response = await websocket.recv()  # Получаем ответ от сервера
+        print(f"Ответ от сервера: {response}")
+        return response
 
-    if check_connect:
-        print("Подключение к Pocket Option успешно!")
-        return api
+# Запрос на получение данных о валютных парах через REST API
+def get_currency_pairs():
+    url = "https://api.pocketoption.com/v1/market/currency-pairs"
+    headers = {
+        "Authorization": 'Bearer 42["auth",{"session":"ugceh9llu62egeenpnhalb629n","isDemo":1,"uid":85002634,"platform":2}]'
+    }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()  # Возвращаем данные в формате JSON
     else:
-        print(f"Ошибка подключения к Pocket Option: {message}")
+        print(f"Ошибка получения валютных пар: {response.status_code}")
         return None
 
-# Функция для получения курса валют с использованием Pocket Option API
-def get_currency_rate(base_currency, target_currency, api):
-    asset = f"{base_currency}_{target_currency}"  # Пример: EUR_USD
-    candles = api.get_candles(asset, 60)  # Получаем последние 60 секунд свечи
+# Функция для получения курса валютной пары
+def get_currency_rate(base_currency, target_currency):
+    pairs = get_currency_pairs()  # Получаем список валютных пар через API
+    if pairs:
+        for pair in pairs['data']:
+            if pair['symbol'] == f"{base_currency}/{target_currency}":
+                return pair['price']  # Возвращаем текущую цену
+    return None
 
-    if candles:
-        current_price = candles[-1]['close']  # Цена закрытия последней свечи
-        return current_price
-    else:
-        print(f"Не удалось получить данные для {asset}")
-        return None
-
-# Функция для генерации LONG-сигнала
-def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
-    signal = (
-        f"🔥LONG🟢🔼\n\n"
-        f"🔥#{base_currency}/{target_currency}☝️\n\n"
-        f"💵Текущая цена:📈 {current_price}\n\n"
-        f"🎯Take Profit 1: 📌{take_profit1}\n"
-        f"🎯Take Profit 2: 📌{take_profit2}\n\n"
-        f"⛔️STOP💥{stop_loss}\n\n"
-    )
-    return signal
-
-# Функция для генерации SHORT-сигнала
-def generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
-    signal = (
-        f"🔥SHORT🔴🔽\n\n"
-        f"🔥#{base_currency}/{target_currency}☝️\n\n"
-        f"💵Текущая цена:📉 {current_price}\n\n"
-        f"🎯Take Profit 1: 📌{take_profit1}\n"
-        f"🎯Take Profit 2: 📌{take_profit2}\n\n"
-        f"🚫STOP💥{stop_loss}"
-    )
-    return signal
-
-# Асинхронная функция для отправки сигналов по валютным парам
-async def send_signals(update: Update, context):
-    api = connect_pocket_option()  # Подключаемся к Pocket Option
-    if api is None:
-        await context.bot.send_message(chat_id=update.message.chat_id, text="Ошибка подключения к Pocket Option.")
-        return
-
-    chat_id = update.message.chat_id
-    
+# Асинхронная функция для генерации сигналов на основе валютных пар
+async def send_signals():
+    # Валютные пары, по которым будем генерировать сигналы
     CURRENCY_PAIRS = [
         ('EUR', 'USD'),
         ('GBP', 'USD'),
@@ -72,52 +48,22 @@ async def send_signals(update: Update, context):
         ('USD', 'TRY')
     ]
 
-    for base_currency, target_currency in CURRENCY_PAIRS:  # Проходим по валютным парам
-        current_price = get_currency_rate(base_currency, target_currency, api)
+    for base_currency, target_currency in CURRENCY_PAIRS:
+        current_price = get_currency_rate(base_currency, target_currency)
         if current_price:
-            # Случайный выбор между LONG и SHORT
-            if random.choice([True, False]):
-                # LONG: Take Profit выше цены, Stop Loss ниже
-                take_profit1 = current_price * 1.05  # Например, 5% выше текущей цены
-                take_profit2 = current_price * 1.1   # Например, 10% выше текущей цены
-                stop_loss = current_price * 0.95    # Например, 5% ниже текущей цены
-                signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-            else:
-                # SHORT: Take Profit ниже цены, Stop Loss выше
-                take_profit1 = current_price * 0.95  # Например, 5% ниже текущей цены
-                take_profit2 = current_price * 0.9   # Например, 10% ниже текущей цены
-                stop_loss = current_price * 1.05    # Например, 5% выше текущей цены
-                signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-            
-            await context.bot.send_message(chat_id=chat_id, text=signal)
+            print(f"Текущая цена {base_currency}/{target_currency}: {current_price}")
         else:
-            await context.bot.send_message(chat_id=chat_id, text=f"Не удалось получить данные для {base_currency}/{target_currency}")
-
-# Обработчик команды /start
-async def start(update: Update, context):
-    await send_signals(update, context)
-
-# Обработчик команды /stop для остановки сигналов
-async def stop(update: Update, context):
-    await update.message.reply_text("Генерация сигналов остановлена.")
+            print(f"Не удалось получить данные для {base_currency}/{target_currency}")
 
 # Основная функция
 def main():
-    print("Запуск бота")  # Отладочное сообщение
+    print("Запуск программы...")
     
-    # Получаем токен из переменной окружения
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    
-    # Создание приложения с поддержкой JobQueue
-    app = ApplicationBuilder().token(TOKEN).build()
+    # Подключение к WebSocket Pocket Option для авторизации
+    asyncio.get_event_loop().run_until_complete(connect_to_pocket_option())
 
-    # Добавляем команды /start и /stop
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stop", stop))
+    # Генерация сигналов
+    asyncio.get_event_loop().run_until_complete(send_signals())
 
-    print("Начало выполнения run_polling()")  # Отладочное сообщение
-    app.run_polling()
-    print("После выполнения run_polling()")  # Отладочное сообщение
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
