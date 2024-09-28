@@ -10,7 +10,7 @@ from telegram import InputFile
 import os
 import requests
 import numpy as np
-from iqoptionapi.stable_api import IQ_Option
+from iqoptionapi import IQ_Option
 
 # Подключение к IQ Option
 async def connect_to_iq_option():
