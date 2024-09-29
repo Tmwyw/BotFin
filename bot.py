@@ -10,17 +10,17 @@ from telegram import InputFile
 import os
 import requests
 import numpy as np
-rom iqoptionapi.api import IQOptionAPI
+from iqoptionapi.api import IQOptionAPI
 from datetime import datetime
 logging.disable(level=(logging.DEBUG))
 
 # Подключение к IQ Option API
 def connect_iq_option():
-    API = IQ_Option("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
+    API = IQOption("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
     API.connect()
-    API.change_balance("PRACTICE")  # или REAL
+    API.changebalance("PRACTICE")  # или REAL
 
-    if API.check_connect():
+    if API.checkconnect():
         print("Успешное подключение к IQ Option")
         return API
     else:
