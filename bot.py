@@ -1,4 +1,6 @@
 import asyncio
+import websocket
+from websocket import create_connection
 from iqoptionapi.ws.client import WebsocketClient
 import json
 from telegram import Update
