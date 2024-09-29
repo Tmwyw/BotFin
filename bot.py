@@ -1,5 +1,5 @@
 import asyncio
-import websockets
+from iqoptionapi.ws.client import WebsocketClient
 import json
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
