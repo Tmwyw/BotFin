@@ -3,6 +3,6 @@ requests
 matplotlib
 seaborn
 requests
-websockets==13.1
+websockets
 iqoptionapi
 
