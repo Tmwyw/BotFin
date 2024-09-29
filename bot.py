@@ -16,7 +16,7 @@ logging.disable(level=(logging.DEBUG))
 
 # Подключение к IQ Option API
 def connect_iq_option():
-    API = IQOption("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
+    API = IQ_Option("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
     API.connect()
     API.changebalance("PRACTICE")  # или REAL
 
