@@ -2,7 +2,6 @@ import asyncio
 import websockets
 import json
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler
 import random
 import matplotlib.pyplot as plt
 import io
