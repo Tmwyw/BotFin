@@ -102,7 +102,7 @@ async def analyze_currency_pairs(context):
 # Команда для начала автоматической проверки сигналов
 async def start_signals(update: Update, context):
     await update.message.reply_text("Автоматическая проверка сигналов запущена.")
-    context.job_queue.run_repeating(analyze_currency_pairs, interval=3600, first=0, chat_id=update.message.chat_id)
+    context.job_queue.run_repeating(analyze_currency_pairs, interval=60, first=0, chat_id=update.message.chat_id)
 
 # Команда для остановки автоматической проверки сигналов
 async def stop_signals(update: Update, context):
