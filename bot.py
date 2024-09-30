@@ -1,44 +1,44 @@
 import asyncio
-import websocket
-from websocket import create_connection
-from iqoptionapi.ws.client import WebsocketClient
-import json
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
-import random
-import matplotlib.pyplot as plt
-import io
-from telegram import InputFile
-import os
 import requests
-import numpy as np
-from iqoptionapi.api import IQOptionAPI
 from datetime import datetime
-logging.disable(level=(logging.DEBUG))
+import random
+import os  # Импортируем os для работы с переменными окружения
 
-# Подключение к IQ Option API
-def connect_iq_option():
-    API = IQ_Option("nik.2ch@gmail.com", "#U6dq$G!Ez65ad45F&gm")
-    API.connect()
-    API.changebalance("PRACTICE")  # или REAL
+# Твой API ключ для обменных курсов
+API_KEY = "e9313eae0113f4c915d2946b3a633c1e"
 
-    if API.checkconnect():
-        print("Успешное подключение к IQ Option")
-        return API
-    else:
-        print("Ошибка подключения")
+# Список валютных пар для мониторинга
+CURRENCY_PAIRS = [
+    ('USD', 'RUB'),
+    ('EUR', 'USD'),
+    ('GBP', 'USD'),
+    ('AUD', 'USD'),
+    ('CAD', 'USD'),
+    ('NZD', 'USD'),
+    ('CHF', 'USD'),
+    ('JPY', 'USD'),
+    ('USD', 'CNY'),
+    ('USD', 'TRY')
+]
+
+# Функция для получения курса валют
+def get_currency_rate(base_currency, target_currency):
+    try:
+        url = f'https://api.exchangeratesapi.io/v1/latest?access_key={API_KEY}&symbols={target_currency}'
+        response = requests.get(url)
+        response.raise_for_status()  # Проверка на ошибки
+        data = response.json()
+        
+        if 'rates' in data:
+            return data['rates'][target_currency]
+        else:
+            return None
+    except requests.RequestException:
         return None
 
-# Получение текущей цены валютной пары
-def get_current_price(api, paridade="EURUSD", timeframe=1):
-    status, candles = api.get_candles(paridade, 60, 1, time.time())
-    if status:
-        return candles[0]['close']
-    else:
-        print(f"Ошибка получения данных для {paridade}")
-        return None
-
-# Генерация сигнала LONG
+# Функция для генерации LONG-сигнала
 def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
     signal = (
         f"🔥LONG🟢🔼\n\n"
@@ -50,7 +50,7 @@ def generate_long_signal(base_currency, target_currency, current_price, take_pro
     )
     return signal
 
-# Генерация сигнала SHORT
+# Функция для генерации SHORT-сигнала
 def generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
     signal = (
         f"🔥SHORT🔴🔽\n\n"
@@ -62,47 +62,56 @@ def generate_short_signal(base_currency, target_currency, current_price, take_pr
     )
     return signal
 
-# Отправка сигналов по валютным парам
+# Асинхронная функция для отправки сигналов по валютным парам
 async def send_signals(update: Update, context):
     chat_id = update.message.chat_id
 
-    # Подключение к IQ Option
-    api = connect_iq_option()
-    if not api:
-        await context.bot.send_message(chat_id=chat_id, text="Ошибка подключения к IQ Option")
-        return
-    
-    base_currency, target_currency = "EUR", "USD"
-    current_price = get_current_price(api, f"{base_currency}{target_currency}")
-
-    if current_price:
-        if random.choice([True, False]):
-            # LONG
-            take_profit1 = current_price * 1.05
-            take_profit2 = current_price * 1.1
-            stop_loss = current_price * 0.95
-            signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+    for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
+        current_price = get_currency_rate(base_currency, target_currency)
+        if current_price:
+            # Случайный выбор между LONG и SHORT
+            if random.choice([True, False]):
+                # LONG: Take Profit выше цены, Stop Loss ниже
+                take_profit1 = current_price * 1.05  # Например, 5% выше текущей цены
+                take_profit2 = current_price * 1.1   # Например, 10% выше текущей цены
+                stop_loss = current_price * 0.95    # Например, 5% ниже текущей цены
+                signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+            else:
+                # SHORT: Take Profit ниже цены, Stop Loss выше
+                take_profit1 = current_price * 0.95  # Например, 5% ниже текущей цены
+                take_profit2 = current_price * 0.9   # Например, 10% ниже текущей цены
+                stop_loss = current_price * 1.05    # Например, 5% выше текущей цены
+                signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+            
+            await context.bot.send_message(chat_id=chat_id, text=signal)
         else:
-            # SHORT
-            take_profit1 = current_price * 0.95
-            take_profit2 = current_price * 0.9
-            stop_loss = current_price * 1.05
-            signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-        
-        await context.bot.send_message(chat_id=chat_id, text=signal)
-    else:
-        await context.bot.send_message(chat_id=chat_id, text="Не удалось получить данные для валютной пары.")
+            await context.bot.send_message(chat_id=chat_id, text=f"Не удалось получить данные для {base_currency}/{target_currency}")
 
 # Обработчик команды /start
 async def start(update: Update, context):
     await send_signals(update, context)
 
+# Обработчик команды /stop для остановки сигналов
+async def stop(update: Update, context):
+    await update.message.reply_text("Генерация сигналов остановлена.")
+
 # Основная функция
 def main():
+    print("Запуск бота")  # Отладочное сообщение
+    
+    # Получаем токен из переменной окружения
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    
+    # Создание приложения с поддержкой JobQueue
     app = ApplicationBuilder().token(TOKEN).build()
+
+    # Добавляем команды /start и /stop
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("stop", stop))
+
+    print("Начало выполнения run_polling()")  # Отладочное сообщение
     app.run_polling()
+    print("После выполнения run_polling()")  # Отладочное сообщение
 
 if __name__ == '__main__':
     main()
