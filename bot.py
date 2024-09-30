@@ -1,15 +1,12 @@
-import asyncio
+import pandas as pd
+import matplotlib.pyplot as plt
+import random
+from datetime import datetime
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
-import requests
-from datetime import datetime
-import random
-import os  # Импортируем os для работы с переменными окружения
+import asyncio
 
-# Твой API ключ для обменных курсов
-API_KEY = "74O1PFK2C59IB5ND"
-
-# Список валютных пар для мониторинга
+# Список валютных пар для анализа
 CURRENCY_PAIRS = [
     ('AUD', 'CAD'),
     ('CHF', 'JPY'),
@@ -23,96 +20,90 @@ CURRENCY_PAIRS = [
     ('USD', 'TRY')
 ]
 
-# Функция для получения курса валют через Alpha Vantage
-def get_currency_rate(base_currency, target_currency):
-    try:
-        url = f'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base_currency}&to_currency={target_currency}&apikey={API_KEY}'
-        response = requests.get(url)
-        response.raise_for_status()  # Проверка на ошибки
-        data = response.json()
+# Функция для получения данных валютных курсов (примерные данные, заменить на реальный API)
+def get_currency_data(base_currency, target_currency):
+    # Пример временных меток и цен, замени на реальные данные от API
+    data = {
+        'timestamp': ['2024-09-30 07:00', '2024-09-30 09:00', '2024-09-30 11:00', 
+                      '2024-09-30 13:00', '2024-09-30 15:00', '2024-09-30 17:00'],
+        'price': [random.uniform(1.0, 1.5) for _ in range(6)]
+    }
+    df = pd.DataFrame(data)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    return df
+
+# Стратегия на основе пересечения скользящих средних (SMA)
+def check_for_signal(df):
+    signal = None
+    # Проверка пересечения скользящих средних
+    if df['SMA_5'].iloc[-1] > df['SMA_10'].iloc[-1] and df['SMA_5'].iloc[-2] <= df['SMA_10'].iloc[-2]:
+        signal = 'BUY'
+    elif df['SMA_5'].iloc[-1] < df['SMA_10'].iloc[-1] and df['SMA_5'].iloc[-2] >= df['SMA_10'].iloc[-2]:
+        signal = 'SELL'
+    return signal
+
+# Функция для создания графика
+def create_chart(df, signal, currency_pair):
+    # Разбираем валютную пару
+    base_currency, target_currency = currency_pair
+    time_stamps = df['timestamp']
+    exchange_rates = df['price']
+    
+    # Создание графика
+    plt.figure(figsize=(10, 6))
+    plt.plot(time_stamps, exchange_rates, label=f'{base_currency}/{target_currency} Rate', color='white', linewidth=2)
+    
+    # Визуальные настройки
+    plt.title(f'Analysis for {base_currency}/{target_currency} with {signal} Signal', fontsize=16)
+    plt.xlabel('Time', fontsize=12)
+    plt.ylabel('Rate', fontsize=12)
+    plt.grid(True, which='both', linestyle='--', color='gray', alpha=0.7)
+
+    # Настройка фона
+    plt.gca().set_facecolor('#1a1a1a')
+    plt.gcf().set_facecolor('#1a1a1a')
+    plt.gca().spines['bottom'].set_color('white')
+    plt.gca().spines['left'].set_color('white')
+    plt.gca().tick_params(axis='x', colors='white')
+    plt.gca().tick_params(axis='y', colors='white')
+
+    # Сохранение графика
+    chart_filename = f'{base_currency}_{target_currency}_signal_chart.png'
+    plt.savefig(chart_filename, dpi=300, bbox_inches='tight', transparent=True)
+    plt.close()
+
+    return chart_filename
+
+# Основная функция для проверки всех валютных пар и отправки сигналов
+async def analyze_currency_pairs(update: Update, context):
+    for currency_pair in CURRENCY_PAIRS:
+        base_currency, target_currency = currency_pair
         
-        if 'Realtime Currency Exchange Rate' in data:
-            rate = data['Realtime Currency Exchange Rate']['5. Exchange Rate']
-            return float(rate)
-        else:
-            return None
-    except requests.RequestException:
-        return None
+        # Получаем данные по валютной паре
+        df = get_currency_data(base_currency, target_currency)
+        
+        # Вычисляем скользящие средние
+        df['SMA_5'] = df['price'].rolling(window=5).mean()
+        df['SMA_10'] = df['price'].rolling(window=10).mean()
 
-# Функция для генерации LONG-сигнала
-def generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
-    signal = (
-        f"🔥LONG🟢🔼\n\n"
-        f"🔥#{base_currency}/{target_currency}☝️\n\n"
-        f"💵Текущая цена:📈 {current_price}\n\n"
-        f"🎯Take Profit 1: 📌{take_profit1}\n"
-        f"🎯Take Profit 2: 📌{take_profit2}\n\n"
-        f"⛔️STOP💥{stop_loss}\n\n"
-    )
-    return signal
-
-# Функция для генерации SHORT-сигнала
-def generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss):
-    signal = (
-        f"🔥SHORT🔴🔽\n\n"
-        f"🔥#{base_currency}/{target_currency}☝️\n\n"
-        f"💵Текущая цена:📉 {current_price}\n\n"
-        f"🎯Take Profit 1: 📌{take_profit1}\n"
-        f"🎯Take Profit 2: 📌{take_profit2}\n\n"
-        f"🚫STOP💥{stop_loss}"
-    )
-    return signal
-
-# Асинхронная функция для отправки сигналов по валютным парам
-async def send_signals(update: Update, context):
-    chat_id = update.message.chat_id
-
-    for base_currency, target_currency in CURRENCY_PAIRS[:3]:  # Берем первые 3 валютные пары
-        current_price = get_currency_rate(base_currency, target_currency)
-        if current_price:
-            # Случайный выбор между LONG и SHORT
-            if random.choice([True, False]):
-                # LONG: Take Profit выше цены, Stop Loss ниже
-                take_profit1 = current_price * 1.05  # Например, 5% выше текущей цены
-                take_profit2 = current_price * 1.1   # Например, 10% выше текущей цены
-                stop_loss = current_price * 0.95    # Например, 5% ниже текущей цены
-                signal = generate_long_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
-            else:
-                # SHORT: Take Profit ниже цены, Stop Loss выше
-                take_profit1 = current_price * 0.95  # Например, 5% ниже текущей цены
-                take_profit2 = current_price * 0.9   # Например, 10% ниже текущей цены
-                stop_loss = current_price * 1.05    # Например, 5% выше текущей цены
-                signal = generate_short_signal(base_currency, target_currency, current_price, take_profit1, take_profit2, stop_loss)
+        # Проверяем сигнал по стратегии
+        signal = check_for_signal(df)
+        
+        if signal:
+            # Генерация графика
+            chart_filename = create_chart(df, signal, currency_pair)
             
-            await context.bot.send_message(chat_id=chat_id, text=signal)
+            # Отправка сигнала с графиком
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
+                                           text=f"{signal} сигнал на {base_currency}/{target_currency}")
+            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=open(chart_filename, 'rb'))
         else:
-            await context.bot.send_message(chat_id=chat_id, text=f"Не удалось получить данные для {base_currency}/{target_currency}")
+            await context.bot.send_message(chat_id=update.effective_chat.id, 
+                                           text=f"Нет сигналов на {base_currency}/{target_currency}")
 
-# Обработчик команды /start
-async def start(update: Update, context):
-    await send_signals(update, context)
+# Настройка бота
+application = ApplicationBuilder().token("ТВОЙ_ТОКЕН").build()
+application.add_handler(CommandHandler("analyze", analyze_currency_pairs))
 
-# Обработчик команды /stop для остановки сигналов
-async def stop(update: Update, context):
-    await update.message.reply_text("Генерация сигналов остановлена.")
-
-# Основная функция
-def main():
-    print("Запуск бота")  # Отладочное сообщение
-    
-    # Получаем токен из переменной окружения
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    
-    # Создание приложения с поддержкой JobQueue
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    # Добавляем команды /start и /stop
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stop", stop))
-
-    print("Начало выполнения run_polling()")  # Отладочное сообщение
-    app.run_polling()
-    print("После выполнения run_polling()")  # Отладочное сообщение
-
-if __name__ == '__main__':
-    main()
+# Запуск бота
+application.run_polling()
