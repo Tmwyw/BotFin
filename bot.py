@@ -102,7 +102,7 @@ async def analyze_currency_pairs(update: Update, context):
                                            text=f"Нет сигналов на {base_currency}/{target_currency}")
 
 # Настройка бота
-application = ApplicationBuilder().token("ТВОЙ_ТОКЕН").build()
+application = ApplicationBuilder().token("7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg").build()
 application.add_handler(CommandHandler("analyze", analyze_currency_pairs))
 
 # Запуск бота
