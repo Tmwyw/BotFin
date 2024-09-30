@@ -74,8 +74,9 @@ def create_chart(df, signal, currency_pair):
 
     return chart_filename
 
-# Основная функция для проверки всех валютных пар и отправки сигналов
-async def analyze_currency_pairs(update: Update, context):
+# Функция для проверки валютных пар и отправки сигналов
+async def analyze_currency_pairs(context):
+    chat_id = context.job.chat_id
     for currency_pair in CURRENCY_PAIRS:
         base_currency, target_currency = currency_pair
         
@@ -94,16 +95,24 @@ async def analyze_currency_pairs(update: Update, context):
             chart_filename = create_chart(df, signal, currency_pair)
             
             # Отправка сигнала с графиком
-            await context.bot.send_message(chat_id=update.effective_chat.id, 
+            await context.bot.send_message(chat_id=chat_id, 
                                            text=f"{signal} сигнал на {base_currency}/{target_currency}")
-            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=open(chart_filename, 'rb'))
-        else:
-            await context.bot.send_message(chat_id=update.effective_chat.id, 
-                                           text=f"Нет сигналов на {base_currency}/{target_currency}")
+            await context.bot.send_photo(chat_id=chat_id, photo=open(chart_filename, 'rb'))
+
+# Команда для начала автоматической проверки сигналов
+async def start_signals(update: Update, context):
+    await update.message.reply_text("Автоматическая проверка сигналов запущена.")
+    context.job_queue.run_repeating(analyze_currency_pairs, interval=3600, first=0, chat_id=update.message.chat_id)
+
+# Команда для остановки автоматической проверки сигналов
+async def stop_signals(update: Update, context):
+    context.job_queue.stop()
+    await update.message.reply_text("Автоматическая проверка сигналов остановлена.")
 
 # Настройка бота
-application = ApplicationBuilder().token("7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg").build()
-application.add_handler(CommandHandler("analyze", analyze_currency_pairs))
+application = ApplicationBuilder().token("ТВОЙ_ТОКЕН").build()
+application.add_handler(CommandHandler("start_signals", start_signals))
+application.add_handler(CommandHandler("stop_signals", stop_signals))
 
 # Запуск бота
 application.run_polling()
