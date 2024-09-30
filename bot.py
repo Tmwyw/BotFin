@@ -11,9 +11,9 @@ API_KEY = "e9313eae0113f4c915d2946b3a633c1e"
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
-    ('USD', 'RUB'),
-    ('EUR', 'USD'),
-    ('GBP', 'USD'),
+    ('AUD', 'CAD'),
+    ('CHF', 'JPY'),
+    ('GBP', 'CAD'),
     ('AUD', 'USD'),
     ('CAD', 'USD'),
     ('NZD', 'USD'),
