@@ -7,7 +7,7 @@ import random
 import os  # Импортируем os для работы с переменными окружения
 
 # Твой API ключ для обменных курсов
-API_KEY = "e9313eae0113f4c915d2946b3a633c1e"
+API_KEY = "74O1PFK2C59IB5ND"
 
 # Список валютных пар для мониторинга
 CURRENCY_PAIRS = [
@@ -23,16 +23,17 @@ CURRENCY_PAIRS = [
     ('USD', 'TRY')
 ]
 
-# Функция для получения курса валют
+# Функция для получения курса валют через Alpha Vantage
 def get_currency_rate(base_currency, target_currency):
     try:
-        url = f'https://api.exchangeratesapi.io/v1/latest?access_key={API_KEY}&symbols={target_currency}'
+        url = f'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base_currency}&to_currency={target_currency}&apikey={API_KEY}'
         response = requests.get(url)
         response.raise_for_status()  # Проверка на ошибки
         data = response.json()
         
-        if 'rates' in data:
-            return data['rates'][target_currency]
+        if 'Realtime Currency Exchange Rate' in data:
+            rate = data['Realtime Currency Exchange Rate']['5. Exchange Rate']
+            return float(rate)
         else:
             return None
     except requests.RequestException:
