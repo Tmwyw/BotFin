@@ -137,7 +137,7 @@ async def stop_signals(update: Update, context):
     await update.message.reply_text("Автоматическая проверка сигналов остановлена.")
 
 # Настройка бота
-application = ApplicationBuilder().token("ТВОЙ_ТОКЕН").build()
+application = ApplicationBuilder().token("7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg").build()
 application.add_handler(CommandHandler("start_signals", start_signals))
 application.add_handler(CommandHandler("stop_signals", stop_signals))
 
