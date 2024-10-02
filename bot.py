@@ -82,7 +82,7 @@ async def main():
     application.add_handler(CommandHandler('signal', send_signal))
 
     # Запуск polling
-    await application.start_polling()
+    await application.run_polling()
 
 if __name__ == '__main__':
     import asyncio
