@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from telegram import Bot
 from telegram.ext import Application, CommandHandler
+import asyncio
 import datetime
 
 API_KEY_ALPHA_VANTAGE = '74O1PFK2C59IB5ND'
@@ -85,5 +86,8 @@ async def main():
     await application.run_polling()
 
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(main())
+    except RuntimeError:
+        asyncio.run(main())
