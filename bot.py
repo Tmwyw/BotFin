@@ -3,7 +3,7 @@ import requests
 import matplotlib.pyplot as plt
 import numpy as np
 from telegram import Bot
-from telegram.ext import CommandHandler, Updater
+from telegram.ext import Application, CommandHandler
 import datetime
 
 API_KEY_ALPHA_VANTAGE = '74O1PFK2C59IB5ND'
@@ -54,7 +54,7 @@ def send_chart(pair, signal):
     bot.send_photo(chat_id='YOUR_CHAT_ID', photo=open(file_path, 'rb'))
 
 # Функция для отправки сигнала
-def send_signal(update, context):
+async def send_signal(update, context):
     # Рандомный выбор валютной пары
     pair = random.choice(CURRENCY_PAIRS)
     from_currency, to_currency = pair
@@ -71,17 +71,19 @@ def send_signal(update, context):
     """
 
     send_chart(pair, signal_type)  # Отправляем график
-    update.message.reply_text(template)  # Отправляем текст
+    await update.message.reply_text(template)  # Отправляем текст
 
 # Основная функция для запуска бота
-def main():
-    updater = Updater(TG_BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+async def main():
+    # Создаем приложение вместо Updater
+    application = Application.builder().token(TG_BOT_TOKEN).build()
 
-    dp.add_handler(CommandHandler('signal', send_signal))
+    # Добавляем обработчик команды
+    application.add_handler(CommandHandler('signal', send_signal))
 
-    updater.start_polling()
-    updater.idle()
+    # Запуск polling
+    await application.start_polling()
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
