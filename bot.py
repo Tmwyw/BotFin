@@ -1,145 +1,87 @@
-import pandas as pd
-import matplotlib.pyplot as plt
+import random
 import requests
-from datetime import datetime
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler
-import asyncio
+import matplotlib.pyplot as plt
+import numpy as np
+from telegram import Bot
+from telegram.ext import CommandHandler, Updater
+import datetime
 
-# Твой API-ключ от Alpha Vantage
-API_KEY = '74O1PFK2C59IB5ND'
+API_KEY_ALPHA_VANTAGE = '74O1PFK2C59IB5ND'
+TG_BOT_TOKEN = '7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg'
 
-# Список валютных пар для анализа
+# Список валютных пар
 CURRENCY_PAIRS = [
-('EUR', 'GBP'),
-('AUD', 'CAD'),
-('GBP', 'CHF'),
-('NZD', 'CAD'),
-('EUR', 'AUD'),
-('AUD', 'NZD'),
-('EUR', 'CHF'),
-('GBP', 'AUD'),
-('CAD', 'CHF'),
-('NZD', 'CHF')
+    ('EUR', 'GBP'),
+    ('AUD', 'CAD'),
+    ('GBP', 'CHF'),
+    ('NZD', 'CAD'),
+    ('EUR', 'AUD'),
+    ('AUD', 'NZD'),
+    ('EUR', 'CHF'),
+    ('GBP', 'AUD'),
+    ('CAD', 'CHF'),
+    ('NZD', 'CHF')
 ]
 
-# Функция для получения данных валютных курсов через Alpha Vantage API
-def get_currency_data(base_currency, target_currency):
-    try:
-        # Формируем URL для запроса
-        url = f'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={base_currency}&to_currency={target_currency}&apikey={API_KEY}'
-        
-        # Отправляем запрос к API
-        response = requests.get(url)
-        response.raise_for_status()  # Проверяем, нет ли ошибок в запросе
+bot = Bot(token=TG_BOT_TOKEN)
 
-        # Преобразуем данные в JSON
-        data = response.json()
+# Функция для получения данных валютной пары
+def get_currency_data(from_currency, to_currency):
+    url = f'https://www.alphavantage.co/query?function=FX_INTRADAY&from_symbol={from_currency}&to_symbol={to_currency}&interval=1min&apikey={API_KEY_ALPHA_VANTAGE}'
+    response = requests.get(url)
+    data = response.json()
+    # Возвращаем последние значения
+    return list(data['Time Series FX (1min)'].values())[0]['1. open']
 
-        # Проверяем наличие данных
-        if 'Realtime Currency Exchange Rate' in data:
-            exchange_rate = float(data['Realtime Currency Exchange Rate']['5. Exchange Rate'])
-            timestamp = datetime.now()  # Получаем текущее время как метку времени
+# Функция для создания и отправки графика
+def send_chart(pair, signal):
+    from_currency, to_currency = pair
+    current_price = get_currency_data(from_currency, to_currency)
+    prices = np.random.normal(float(current_price), 0.005, 100)  # Симуляция данных для графика
+    times = np.linspace(0, 10, 100)
 
-            # Формируем DataFrame для возвращаемых данных
-            df = pd.DataFrame({
-                'timestamp': [timestamp],
-                'price': [exchange_rate]
-            })
-            return df
-        else:
-            # Если данных нет, возвращаем None
-            return None
+    plt.figure(figsize=(10, 5))
+    plt.plot(times, prices, label=f'{from_currency}/{to_currency} Price')
+    plt.title(f'{from_currency}/{to_currency} Chart with {signal}')
+    plt.axhline(y=min(prices), color='r', linestyle='--', label="Support Level")
+    plt.axhline(y=max(prices), color='g', linestyle='--', label="Resistance Level")
+    plt.legend()
 
-    except requests.RequestException as e:
-        print(f"Ошибка при получении данных: {e}")
-        return None
-
-# Стратегия на основе пересечения скользящих средних (SMA)
-def check_for_signal(df):
-    signal = None
-    # Проверка пересечения скользящих средних
-    if df['SMA_5'].iloc[-1] > df['SMA_10'].iloc[-1] and df['SMA_5'].iloc[-2] <= df['SMA_10'].iloc[-2]:
-        signal = 'BUY'
-    elif df['SMA_5'].iloc[-1] < df['SMA_10'].iloc[-1] and df['SMA_5'].iloc[-2] >= df['SMA_10'].iloc[-2]:
-        signal = 'SELL'
-    return signal
-
-# Функция для создания графика
-def create_chart(df, signal, currency_pair):
-    # Разбираем валютную пару
-    base_currency, target_currency = currency_pair
-    time_stamps = df['timestamp']
-    exchange_rates = df['price']
-    
-    # Создание графика
-    plt.figure(figsize=(10, 6))
-    plt.plot(time_stamps, exchange_rates, label=f'{base_currency}/{target_currency} Rate', color='white', linewidth=2)
-    
-    # Визуальные настройки
-    plt.title(f'Analysis for {base_currency}/{target_currency} with {signal} Signal', fontsize=16)
-    plt.xlabel('Time', fontsize=12)
-    plt.ylabel('Rate', fontsize=12)
-    plt.grid(True, which='both', linestyle='--', color='gray', alpha=0.7)
-
-    # Настройка фона
-    plt.gca().set_facecolor('#1a1a1a')
-    plt.gcf().set_facecolor('#1a1a1a')
-    plt.gca().spines['bottom'].set_color('white')
-    plt.gca().spines['left'].set_color('white')
-    plt.gca().tick_params(axis='x', colors='white')
-    plt.gca().tick_params(axis='y', colors='white')
-
-    # Сохранение графика
-    chart_filename = f'{base_currency}_{target_currency}_signal_chart.png'
-    plt.savefig(chart_filename, dpi=300, bbox_inches='tight', transparent=True)
+    file_path = '/mnt/data/chart.png'
+    plt.savefig(file_path)
     plt.close()
 
-    return chart_filename
+    bot.send_photo(chat_id='YOUR_CHAT_ID', photo=open(file_path, 'rb'))
 
-# Функция для проверки валютных пар и отправки сигналов
-async def analyze_currency_pairs(context):
-    chat_id = context.job.chat_id
-    for currency_pair in CURRENCY_PAIRS:
-        base_currency, target_currency = currency_pair
-        
-        # Получаем данные по валютной паре через Alpha Vantage API
-        df = get_currency_data(base_currency, target_currency)
-        
-        if df is not None:
-            # Вычисляем скользящие средние
-            df['SMA_5'] = df['price'].rolling(window=5).mean()
-            df['SMA_10'] = df['price'].rolling(window=10).mean()
+# Функция для отправки сигнала
+def send_signal(update, context):
+    # Рандомный выбор валютной пары
+    pair = random.choice(CURRENCY_PAIRS)
+    from_currency, to_currency = pair
+    signal_type = random.choice(['LONG 🟢🔼', 'SHORT 🔴🔽'])
+    time_options = ['1M', '2M', '3M', '5M']
+    deal_time = random.choice(time_options)
 
-            # Проверяем сигнал по стратегии
-            signal = check_for_signal(df)
-            
-            if signal:
-                # Генерация графика
-                chart_filename = create_chart(df, signal, currency_pair)
-                
-                # Отправка сигнала с графиком
-                await context.bot.send_message(chat_id=chat_id, 
-                                               text=f"{signal} сигнал на {base_currency}/{target_currency}")
-                await context.bot.send_photo(chat_id=chat_id, photo=open(chart_filename, 'rb'))
-        else:
-            await context.bot.send_message(chat_id=chat_id, 
-                                           text=f"Не удалось получить данные по {base_currency}/{target_currency}")
+    current_price = get_currency_data(from_currency, to_currency)
+    template = f"""
+    🔥{signal_type}
+    🔥{from_currency}/{to_currency} OTC📌
+    ⌛️ Время сделки: {deal_time}
+    💵Текущая цена:📉 {current_price}
+    """
 
-# Команда для начала автоматической проверки сигналов каждые 30 минут
-async def start_signals(update: Update, context):
-    await update.message.reply_text("Автоматическая проверка сигналов запущена.")
-    context.job_queue.run_repeating(analyze_currency_pairs, interval=1800, first=0, chat_id=update.message.chat_id)
+    send_chart(pair, signal_type)  # Отправляем график
+    update.message.reply_text(template)  # Отправляем текст
 
-# Команда для остановки автоматической проверки сигналов
-async def stop_signals(update: Update, context):
-    context.job_queue.stop()
-    await update.message.reply_text("Автоматическая проверка сигналов остановлена.")
+# Основная функция для запуска бота
+def main():
+    updater = Updater(TG_BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-# Настройка бота
-application = ApplicationBuilder().token("7449818362:AAHrejKv90PyRkrgMTdZvHzT9p44ePlZYcg").build()
-application.add_handler(CommandHandler("start_signals", start_signals))
-application.add_handler(CommandHandler("stop_signals", stop_signals))
+    dp.add_handler(CommandHandler('signal', send_signal))
 
-# Запуск бота
-application.run_polling()
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
