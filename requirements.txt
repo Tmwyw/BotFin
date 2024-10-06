@@ -2,3 +2,4 @@ transformers
 tensorflow
 aiogram
 requests
+python-telegram-bot
