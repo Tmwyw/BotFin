@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Настройка OpenAI API и Telegram API
-openai.api_key = os.getenv("OPENAI_API_KEY")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+openai.api_key = os.getenv("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")
+TELEGRAM_BOT_TOKEN = os.getenv("8068789170:AAHmKXcP9g_qTVuP_KNBAFGU56__-0nDseQ")
 
 # Список каналов с топиками
 channels = [
